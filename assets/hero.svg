@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 480" width="1200" height="480" font-family="system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b1220"/>
+      <stop offset="1" stop-color="#15263b"/>
+    </linearGradient>
+    <linearGradient id="teal" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2dd4bf"/>
+      <stop offset="1" stop-color="#38bdf8"/>
+    </linearGradient>
+    <marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#7c8aa5"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="480" fill="url(#bg)"/>
+  <rect x="0" y="0" width="1200" height="6" fill="url(#teal)"/>
+
+  <text x="80" y="120" fill="#8fa3bf" font-size="20" font-weight="600" letter-spacing="3">TYK · MCP GOVERNANCE</text>
+  <text x="80" y="188" fill="#ffffff" font-size="52" font-weight="800">Your AI agent can</text>
+  <text x="80" y="248" fill="#ffffff" font-size="52" font-weight="800">issue <tspan fill="#2dd4bf">refunds</tspan>.</text>
+  <text x="80" y="308" fill="#c6d3e6" font-size="22" font-weight="500">Put a gateway in front. Rate limits, token caps, a queryable audit trail.</text>
+
+  <!-- flow motif -->
+  <g transform="translate(80,360)">
+    <!-- agents -->
+    <rect x="0" y="6" width="150" height="34" rx="8" fill="#132234" stroke="#2b3d55"/>
+    <circle cx="22" cy="23" r="7" fill="#34d399"/><text x="40" y="28" fill="#dfe8f5" font-size="15">agent-alpha</text>
+    <rect x="0" y="52" width="150" height="34" rx="8" fill="#132234" stroke="#2b3d55"/>
+    <circle cx="22" cy="69" r="7" fill="#60a5fa"/><text x="40" y="74" fill="#dfe8f5" font-size="15">agent-beta</text>
+
+    <line x1="150" y1="46" x2="235" y2="46" stroke="#7c8aa5" stroke-width="2" marker-end="url(#ah)"/>
+
+    <!-- gateway shield -->
+    <rect x="245" y="6" width="230" height="80" rx="12" fill="#0f2b33" stroke="#2dd4bf" stroke-width="2"/>
+    <text x="360" y="38" fill="#2dd4bf" font-size="17" font-weight="700" text-anchor="middle">Tyk Gateway</text>
+    <text x="360" y="62" fill="#9fb6c9" font-size="13" text-anchor="middle">auth · limits · plugin · audit</text>
+
+    <line x1="475" y1="46" x2="560" y2="46" stroke="#7c8aa5" stroke-width="2" marker-end="url(#ah)"/>
+
+    <!-- upstreams -->
+    <rect x="570" y="6" width="180" height="34" rx="8" fill="#132234" stroke="#2b3d55"/>
+    <text x="660" y="28" fill="#dfe8f5" font-size="14" text-anchor="middle">MCP server</text>
+    <rect x="570" y="52" width="180" height="34" rx="8" fill="#132234" stroke="#2b3d55"/>
+    <text x="660" y="74" fill="#dfe8f5" font-size="14" text-anchor="middle">OpenAI API</text>
+  </g>
+
+  <text x="1120" y="452" fill="#5b6c86" font-size="14" text-anchor="end">open-source · docker compose up</text>
+</svg>

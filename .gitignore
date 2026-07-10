@@ -1,0 +1,14 @@
+# secrets and generated files
+.env
+client/agents.json
+
+# built plugin artifact (rebuild with `make -C plugin plugin`)
+plugin/*.so
+
+# python
+.venv/
+__pycache__/
+*.pyc
+
+# generated from ARTICLE.md
+ARTICLE.html

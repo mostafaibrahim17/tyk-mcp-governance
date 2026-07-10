@@ -1,0 +1,29 @@
+{
+  "name": "openai-llm",
+  "api_id": "openai-llm",
+  "org_id": "default",
+  "active": true,
+  "use_keyless": false,
+  "use_standard_auth": true,
+  "auth": { "auth_header_name": "apikey" },
+  "definition": { "location": "header", "key": "version" },
+  "version_data": {
+    "not_versioned": true,
+    "versions": { "Default": { "name": "Default", "use_extended_paths": true } }
+  },
+  "proxy": {
+    "listen_path": "/openai/",
+    "target_url": "https://api.openai.com",
+    "strip_listen_path": true
+  },
+  "custom_middleware": {
+    "post": [
+      { "name": "EnforceBudget", "path": "/opt/tyk-gateway/plugins/token_guard.so", "raw_body_only": false }
+    ],
+    "response": [
+      { "name": "MeterTokens", "path": "/opt/tyk-gateway/plugins/token_guard.so", "raw_body_only": false }
+    ],
+    "driver": "goplugin"
+  },
+  "enable_detailed_recording": true
+}

@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 250" width="920" height="250" font-family="system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="f" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#64748b"/>
+    </marker>
+    <marker id="fr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#ef4444"/>
+    </marker>
+  </defs>
+
+  <rect width="920" height="250" rx="14" fill="#f7f9fc" stroke="#e2e8f0"/>
+  <text x="32" y="40" fill="#0f172a" font-size="19" font-weight="700">How every request is checked at the gateway</text>
+
+  <!-- lane -->
+  <g font-size="14" text-anchor="middle">
+    <!-- request -->
+    <rect x="30" y="88" width="104" height="56" rx="10" fill="#e2e8f0" stroke="#94a3b8"/>
+    <text x="82" y="114" fill="#0f172a" font-weight="600">agent</text>
+    <text x="82" y="132" fill="#475569" font-size="12">request</text>
+
+    <!-- auth -->
+    <rect x="184" y="88" width="124" height="56" rx="10" fill="#ffffff" stroke="#14b8a6" stroke-width="2"/>
+    <text x="246" y="112" fill="#0f172a" font-weight="600">1 · Auth</text>
+    <text x="246" y="130" fill="#475569" font-size="12">valid key?</text>
+
+    <!-- rate limit -->
+    <rect x="358" y="88" width="140" height="56" rx="10" fill="#ffffff" stroke="#14b8a6" stroke-width="2"/>
+    <text x="428" y="112" fill="#0f172a" font-weight="600">2 · Rate limit</text>
+    <text x="428" y="130" fill="#475569" font-size="12">within quota?</text>
+
+    <!-- plugin -->
+    <rect x="548" y="88" width="170" height="56" rx="10" fill="#ffffff" stroke="#0d9488" stroke-width="2.5"/>
+    <text x="633" y="112" fill="#0f172a" font-weight="600">3 · Go plugin</text>
+    <text x="633" y="130" fill="#0d9488" font-size="12">tool allowed? · in budget?</text>
+
+    <!-- upstream -->
+    <rect x="768" y="88" width="120" height="56" rx="10" fill="#ecfdf5" stroke="#34d399"/>
+    <text x="828" y="112" fill="#065f46" font-weight="600">upstream</text>
+    <text x="828" y="130" fill="#059669" font-size="12">tool / LLM</text>
+  </g>
+
+  <!-- forward arrows -->
+  <g stroke="#64748b" stroke-width="2" marker-end="url(#f)">
+    <line x1="134" y1="116" x2="182" y2="116"/>
+    <line x1="308" y1="116" x2="356" y2="116"/>
+    <line x1="498" y1="116" x2="546" y2="116"/>
+    <line x1="718" y1="116" x2="766" y2="116"/>
+  </g>
+
+  <!-- reject drops -->
+  <g font-size="12.5" text-anchor="middle" fill="#ef4444" font-weight="600">
+    <line x1="246" y1="144" x2="246" y2="188" stroke="#ef4444" stroke-width="1.6" marker-end="url(#fr)"/>
+    <text x="246" y="210">401 no key</text>
+    <line x1="428" y1="144" x2="428" y2="188" stroke="#ef4444" stroke-width="1.6" marker-end="url(#fr)"/>
+    <text x="428" y="210">429 throttled</text>
+    <line x1="633" y1="144" x2="633" y2="188" stroke="#ef4444" stroke-width="1.6" marker-end="url(#fr)"/>
+    <text x="633" y="210">403 tool · 429 budget</text>
+  </g>
+</svg>

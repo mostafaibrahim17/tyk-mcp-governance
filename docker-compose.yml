@@ -1,0 +1,52 @@
+# Governance stack: one gateway in front of an MCP server and OpenAI, with Redis
+# for state, Pump draining analytics to Postgres for the audit trail.
+#
+# Build the Go plugin FIRST (the gateway mounts the .so):  make -C plugin plugin
+# Then:  docker compose up -d  &&  ./tyk/bootstrap/setup.sh
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-tyk}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tyk}
+      POSTGRES_DB: ${POSTGRES_DB:-tyk_analytics}
+    ports:
+      - "5433:5432"
+    restart: unless-stopped
+
+  mcp-server:
+    build: ./mcp-server
+    restart: unless-stopped
+
+  tyk-gateway:
+    image: tykio/tyk-gateway:v5.14.0
+    # Must match the plugin .so architecture (the plugin compiler is amd64-only).
+    platform: linux/amd64
+    ports:
+      - "8080:8080"
+    environment:
+      TYK_GW_SECRET: ${TYK_SECRET:-changeme-secret}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    volumes:
+      - ./tyk/tyk.conf:/opt/tyk-gateway/tyk.conf
+      - ./tyk/apps:/opt/tyk-gateway/apps
+      - ./tyk/policies:/opt/tyk-gateway/policies
+      - ./plugin/token_guard.so:/opt/tyk-gateway/plugins/token_guard.so
+    depends_on:
+      - redis
+      - mcp-server
+    restart: unless-stopped
+
+  tyk-pump:
+    image: tykio/tyk-pump-docker-pub:v1.16.0
+    volumes:
+      - ./pump/pump.conf:/opt/tyk-pump/pump.conf
+    depends_on:
+      - redis
+      - postgres
+    restart: unless-stopped
