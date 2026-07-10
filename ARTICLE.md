@@ -70,7 +70,7 @@ The `docker-compose.yml` brings up the gateway, Redis (Tyk needs it, even for on
 
 Now the gateway serves the MCP server at `http://localhost:8080/internal-tools/mcp`, and it asks for a key, because we turned keyless access off. One warning, learned the hard way: do not put `mcp` in the `api_id`. The gateway routes anything with `mcp` in the name to its built-in MCP path, which only accepts the Dashboard format, so it quietly drops a plain API def. It doesn't warn you. It just acts like your API doesn't exist. I lost an afternoon to that so you don't have to.
 
-## One key per agent: identity, rate, quotas
+## One key per agent: identity and rate limits
 
 Every request runs the same set of checks, and any one of them can stop it before it reaches a tool or the model.
 

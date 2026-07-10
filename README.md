@@ -9,8 +9,8 @@ sits in front of two upstreams:
 - an **MCP server** (FastMCP, Streamable HTTP) exposing internal tools
 - the **OpenAI API**
 
-…and enforces the five things raw MCP leaves to you: per-agent **auth**,
-**rate limits & quotas**, per-tool **access control**, a custom **token budget**,
+The gateway enforces the five things raw MCP leaves to you: per-agent **auth**,
+**rate limits**, per-tool **access control**, a custom **token budget**,
 and a SQL-queryable **audit trail**.
 
 ![Architecture: two agents through the Tyk gateway on :8080, fronting the MCP server and OpenAI, with analytics draining through Redis and Tyk Pump into Postgres](assets/architecture.svg)
