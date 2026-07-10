@@ -19,9 +19,11 @@ and a SQL-queryable **audit trail**.
 > server is proxied as a classic Tyk API and per-tool access control is done in the Go
 > plugin (which parses the JSON-RPC body). Tyk's **native MCP Gateway** does the same
 > declaratively (per-tool rate limits, filtered `tools/list` discovery, JSON-RPC policy),
-> and its enforcement engine is open source. The catch: managing its OAS/MCP API
-> definitions needs the **licensed Tyk Dashboard**, and a Dashboard-less gateway won't
-> mount OAS defs. See the article for that production upgrade path.
+> and it's fully open source. The catch is a bug, not a paywall: on a Dashboard-less
+> gateway the OAS/MCP definitions don't currently mount (an open file-loader issue,
+> [tyk#7460](https://github.com/TykTechnologies/tyk/issues/7460), silently skips OAS
+> defs). The Dashboard loads them a different way, so today native MCP needs it, or a
+> plugin like this one. See the article for more.
 
 ## What's here
 
@@ -72,7 +74,7 @@ Every request runs the same set of checks, and any one of them can stop it:
 ![Request flow: each request passes auth, then the rate limit, then the Go plugin's tool and budget checks before reaching the upstream; failures return 401, 429, or 403](assets/request-flow.svg)
 
 - **Per-tool access control:** both agents can list tools, but `agent-alpha`'s `issue_refund` call is blocked (`403`) by the plugin while `agent-beta`'s succeeds.
-- **Rate-limit isolation:** `agent-alpha` bursts and trips `429`s while `agent-beta` keeps getting `200`.
+- **Rate-limit isolation:** `agent-alpha` bursts and trips `429`s while `agent-beta` is unaffected. (In the raw burst the pre-`429` requests return `400`, because it skips the MCP handshake; the gateway lets a few through, then throttles.)
 - **Token budget:** each agent's OpenAI calls succeed until cumulative `total_tokens` crosses its budget, then `429 token budget exhausted`. The Go plugin enforces it, per agent.
 - **Audit trail:** `audit.sql` returns per-agent call counts, error counts, and summed token spend from Postgres.
 
@@ -85,9 +87,11 @@ Every request runs the same set of checks, and any one of them can stop it:
   server needs a stdio→HTTP bridge in front.
 - **In-memory token counter.** The plugin keeps per-agent totals in process, which
   is fine for one gateway node. For a cluster, move the counter to Redis.
-- **Native MCP Gateway (Dashboard).** To get declarative per-tool rate limits and
-  filtered discovery instead of the plugin, run the licensed Tyk Dashboard and define
-  the MCP server as an OAS/MCP proxy. The enforcement is open-source; the management
-  tooling is not.
-- **Managed alternative.** Tyk AI Studio does token/cost and model governance as a
-  no-code product if you'd rather not write the plugin.
+- **Native MCP Gateway.** Tyk's native MCP gateway does per-tool rate limits and
+  filtered discovery with no code, and it's open source. But on a Dashboard-less gateway
+  the definitions don't currently mount (open bug
+  [tyk#7460](https://github.com/TykTechnologies/tyk/issues/7460) skips OAS defs); the
+  Dashboard loads them a different way. So today native MCP needs the Dashboard, or a
+  plugin like this one.
+- **Managed alternative.** Tyk AI Studio does cost budgets and model governance as a
+  separate Tyk product if you'd rather not write the plugin.
