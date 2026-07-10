@@ -1,5 +1,7 @@
 # Putting an MCP server behind Tyk
 
+![Your AI agent can issue refunds: put a gateway in front, with rate limits, token caps, and a queryable audit trail](assets/hero.svg)
+
 A runnable governance stack for AI-agent traffic, built entirely on the
 **open-source Tyk Gateway** (MPL 2.0, no license, no Dashboard). One gateway
 sits in front of two upstreams:
@@ -11,15 +13,7 @@ sits in front of two upstreams:
 **rate limits & quotas**, per-tool **access control**, a custom **token budget**,
 and a SQL-queryable **audit trail**.
 
-```
-                         ┌──────────────────────────── Tyk Gateway (OSS) ───────────┐
-   agent-alpha  ─┐       │  per-agent keys · rate limits · quotas                    │      ┌── MCP server
-                 ├─ :8080 ┤  Go plugin: per-tool MCP access control + token budget   ├──────┤   (FastMCP)
-   agent-beta   ─┘       │                                                           │      └── api.openai.com
-                         └───────────────┬───────────────────────────────────────────┘
-                                         │ analytics
-                                    Redis ─→ Tyk Pump ─→ Postgres  (audit trail)
-```
+![Architecture: two agents through the Tyk gateway on :8080, fronting the MCP server and OpenAI, with analytics draining through Redis and Tyk Pump into Postgres](assets/architecture.svg)
 
 > **OSS vs Dashboard.** This repo runs on the **free open-source gateway**, so the MCP
 > server is proxied as a classic Tyk API and per-tool access control is done in the Go
@@ -72,6 +66,10 @@ docker compose exec -T postgres psql -U tyk -d tyk_analytics -f - < sql/audit.sq
 ```
 
 ## What you should see
+
+Every request runs the same set of checks, and any one of them can stop it:
+
+![Request flow: each request passes auth, then the rate limit, then the Go plugin's tool and budget checks before reaching the upstream; failures return 401, 429, or 403](assets/request-flow.svg)
 
 - **Per-tool access control:** both agents can list tools, but `agent-alpha`'s `issue_refund` call is blocked (`403`) by the plugin while `agent-beta`'s succeeds.
 - **Rate-limit isolation:** `agent-alpha` bursts and trips `429`s while `agent-beta` keeps getting `200`.
