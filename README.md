@@ -2,6 +2,12 @@
 
 ![Your AI agent can issue refunds: put a gateway in front, with rate limits, token caps, and a queryable audit trail](assets/hero.svg)
 
+[![License: MPL-2.0](https://img.shields.io/badge/license-MPL--2.0-blue.svg)](https://www.mozilla.org/en-US/MPL/2.0/)
+![Tyk Gateway 5.14](https://img.shields.io/badge/Tyk%20Gateway-5.14-00b5c0)
+![Docker Compose](https://img.shields.io/badge/Docker-compose-2496ed?logo=docker&logoColor=white)
+![Go plugin](https://img.shields.io/badge/plugin-Go-00add8?logo=go&logoColor=white)
+![Runs on the free OSS gateway](https://img.shields.io/badge/runs%20on-free%20OSS%20gateway-brightgreen)
+
 A runnable governance stack for AI-agent traffic, built entirely on the
 **open-source Tyk Gateway** (MPL 2.0, no license, no Dashboard). One gateway
 sits in front of two upstreams:
@@ -12,6 +18,8 @@ sits in front of two upstreams:
 The gateway enforces the five things raw MCP leaves to you: per-agent **auth**,
 **rate limits**, per-tool **access control**, a custom **token budget**,
 and a SQL-queryable **audit trail**.
+
+> **TL;DR.** Two agents, one gateway. Watch it block a refund it shouldn't allow (`403`), throttle an agent that floods it (`429`), cut off an agent that burns its token budget (`429`), and log every call to Postgres. All on the free open-source Tyk gateway, no Dashboard and no license. `docker compose up`, run one script, see all five controls fire.
 
 ![Architecture: two agents through the Tyk gateway on :8080, fronting the MCP server and OpenAI, with analytics draining through Redis and Tyk Pump into Postgres](assets/architecture.svg)
 
@@ -24,6 +32,13 @@ and a SQL-queryable **audit trail**.
 > [tyk#7460](https://github.com/TykTechnologies/tyk/issues/7460), silently skips OAS
 > defs). The Dashboard loads them a different way, so today native MCP needs it, or a
 > plugin like this one. See the article for more.
+
+## Contents
+
+- [What's here](#whats-here)
+- [Run it](#run-it)
+- [What you should see](#what-you-should-see)
+- [Notes & gotchas](#notes--gotchas)
 
 ## What's here
 
@@ -68,6 +83,10 @@ docker compose exec -T postgres psql -U tyk -d tyk_analytics -f - < sql/audit.sq
 ```
 
 ## What you should see
+
+`python client/agent.py` drives both agents and prints every control firing:
+
+![Terminal capture of client/agent.py: agent-alpha's issue_refund is blocked with 403 while agent-beta's succeeds; agent-alpha's 30-call burst is throttled with 429 while agent-beta is unaffected; agent-alpha hits 429 budget exhausted on its fourth call while agent-beta keeps going](assets/demo-run.svg)
 
 Every request runs the same set of checks, and any one of them can stop it:
 

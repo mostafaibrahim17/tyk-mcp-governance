@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 384" width="760" height="384" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">
+  <rect width="760" height="384" rx="10" fill="#0d1117" stroke="#30363d"/>
+  <!-- title bar -->
+  <rect width="760" height="34" rx="10" fill="#161b22"/>
+  <rect y="20" width="760" height="14" fill="#161b22"/>
+  <circle cx="22" cy="17" r="6" fill="#ff5f56"/>
+  <circle cx="42" cy="17" r="6" fill="#ffbd2e"/>
+  <circle cx="62" cy="17" r="6" fill="#27c93f"/>
+  <text x="380" y="22" fill="#8b949e" font-size="13" text-anchor="middle">python client/agent.py</text>
+
+  <g font-size="14">
+    <text x="24" y="66" fill="#c9d1d9">$ python client/agent.py</text>
+
+    <text x="24" y="104" fill="#2dd4bf" font-weight="700">1 · Per-tool access control</text>
+    <text x="40" y="130" fill="#c9d1d9">agent-alpha  issue_refund</text>
+    <text x="440" y="130" fill="#f87171">403  BLOCKED by Tyk</text>
+    <text x="40" y="156" fill="#c9d1d9">agent-beta   issue_refund</text>
+    <text x="440" y="156" fill="#4ade80">refund_issued  ✓</text>
+
+    <text x="24" y="196" fill="#2dd4bf" font-weight="700">2 · Rate-limit isolation</text>
+    <text x="40" y="222" fill="#c9d1d9">agent-alpha  30 rapid calls</text>
+    <text x="440" y="222" fill="#fbbf24">429 × 25  throttled</text>
+    <text x="40" y="248" fill="#c9d1d9">agent-beta   during the burst</text>
+    <text x="440" y="248" fill="#4ade80">unaffected  ✓</text>
+
+    <text x="24" y="288" fill="#2dd4bf" font-weight="700">3 · Token budget  (150 tokens)</text>
+    <text x="40" y="314" fill="#c9d1d9">agent-alpha  call 4</text>
+    <text x="440" y="314" fill="#fbbf24">429  budget exhausted</text>
+    <text x="40" y="340" fill="#c9d1d9">agent-beta   calls 1–7</text>
+    <text x="440" y="340" fill="#4ade80">200  ✓</text>
+  </g>
+</svg>

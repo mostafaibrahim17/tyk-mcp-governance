@@ -12,3 +12,7 @@ __pycache__/
 
 # generated from ARTICLE.md
 ARTICLE.html
+
+# local preview/review renders
+*-preview.html
+*-review.html
