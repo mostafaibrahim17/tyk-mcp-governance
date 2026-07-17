@@ -38,7 +38,7 @@ JSON
 }
 
 echo "Issuing agent keys..."
-# agent-alpha: read-only, tight MCP rate limit (5/60) to show isolation.
+# agent-alpha: read-only, tight MCP rate limit (20/60) to show isolation.
 # agent-beta:  privileged, generous limits.
 ALPHA_KEY="$(create_key agent-alpha 20   150    "lookup_order")"
 BETA_KEY="$(create_key agent-beta  1000 100000 "lookup_order,issue_refund")"

@@ -21,17 +21,18 @@ and a SQL-queryable **audit trail**.
 
 > **TL;DR.** Two agents, one gateway. Watch it block a refund it shouldn't allow (`403`), throttle an agent that floods it (`429`), cut off an agent that burns its token budget (`429`), and log every call to Postgres. All on the free open-source Tyk gateway, no Dashboard and no license. `docker compose up`, run one script, see all five controls fire.
 
-![Architecture: two agents through the Tyk gateway on :8080, fronting the MCP server and OpenAI, with analytics draining through Redis and Tyk Pump into Postgres](assets/architecture.svg)
+![Architecture: two agents through the Tyk gateway on :8080, fronting the MCP server and OpenAI, with analytics draining through Redis and Tyk Pump into Postgres](assets/architecture.png)
 
 > **OSS vs Dashboard.** This repo runs on the **free open-source gateway**, so the MCP
 > server is proxied as a classic Tyk API and per-tool access control is done in the Go
 > plugin (which parses the JSON-RPC body). Tyk's **native MCP Gateway** does the same
 > declaratively (per-tool rate limits, filtered `tools/list` discovery, JSON-RPC policy),
-> and it's fully open source. The catch is a bug, not a paywall: on a Dashboard-less
-> gateway the OAS/MCP definitions don't currently mount (an open file-loader issue,
-> [tyk#7460](https://github.com/TykTechnologies/tyk/issues/7460), silently skips OAS
-> defs). The Dashboard loads them a different way, so today native MCP needs it, or a
-> plugin like this one. See the article for more.
+> and the enforcement runs on the open-source gateway. The catch is a bug, not a paywall: on a Dashboard-less
+> gateway the OAS-format MCP definitions don't reliably load from files (file-based OAS
+> loading has known rough edges, e.g. [tyk#7460](https://github.com/TykTechnologies/tyk/issues/7460),
+> where a classic def overrides an OAS one on file load). The Dashboard loads them from
+> its own database and sidesteps this, so today native MCP needs it, or a plugin like
+> this one. See the article for more.
 
 ## Contents
 
@@ -90,7 +91,7 @@ docker compose exec -T postgres psql -U tyk -d tyk_analytics -f - < sql/audit.sq
 
 Every request runs the same set of checks, and any one of them can stop it:
 
-![Request flow: each request passes auth, then the rate limit, then the Go plugin's tool and budget checks before reaching the upstream; failures return 401, 429, or 403](assets/request-flow.svg)
+![Request flow: each request passes auth, then the rate limit, then the Go plugin's tool and budget checks before reaching the upstream; failures return 401, 429, or 403](assets/request-flow.png)
 
 - **Per-tool access control:** both agents can list tools, but `agent-alpha`'s `issue_refund` call is blocked (`403`) by the plugin while `agent-beta`'s succeeds.
 - **Rate-limit isolation:** `agent-alpha` bursts and trips `429`s while `agent-beta` is unaffected. (In the raw burst the pre-`429` requests return `400`, because it skips the MCP handshake; the gateway lets a few through, then throttles.)
@@ -108,9 +109,9 @@ Every request runs the same set of checks, and any one of them can stop it:
   is fine for one gateway node. For a cluster, move the counter to Redis.
 - **Native MCP Gateway.** Tyk's native MCP gateway does per-tool rate limits and
   filtered discovery with no code, and it's open source. But on a Dashboard-less gateway
-  the definitions don't currently mount (open bug
-  [tyk#7460](https://github.com/TykTechnologies/tyk/issues/7460) skips OAS defs); the
-  Dashboard loads them a different way. So today native MCP needs the Dashboard, or a
-  plugin like this one.
+  the OAS-format definitions don't reliably load from files (file-based OAS loading has
+  known rough edges, e.g. [tyk#7460](https://github.com/TykTechnologies/tyk/issues/7460),
+  where a classic def overrides an OAS one on file load); the Dashboard loads them from
+  its own database. So today native MCP needs the Dashboard, or a plugin like this one.
 - **Managed alternative.** Tyk AI Studio does cost budgets and model governance as a
   separate Tyk product if you'd rather not write the plugin.

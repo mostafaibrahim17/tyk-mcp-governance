@@ -6,9 +6,9 @@
 
 Teams are wiring AI agents up to internal tools through MCP, and a lot of them are doing it with no controls at all. Any agent can call any tool, as often as it likes, and nobody keeps a record. That's fine right up until an agent that was supposed to *read* orders starts *refunding* them.
 
-James Hirst made this case on this blog, in ["Why AI agents using MCP need API gateways"](https://tyk.io/blog/ai-agents-need-api-gateways/). The argument is hard to disagree with: agents recreate the exact problems that built the API gateway market in the first place. Auth is a mess. There's no visibility. Rate limiting is an afterthought. There's no audit trail. The access rules live in someone's head. He's right about all of it. He also doesn't show you a single line of code.
+James Hirst made this case on this blog, in ["AI agents need API gateways"](https://tyk.io/blog/ai-agents-need-api-gateways/), and the argument is hard to disagree with: agents recreate the exact problems that built the API gateway market in the first place, the ones where auth is a mess, there's no visibility, rate limiting is an afterthought, nothing gets audited, and the access rules live in someone's head. He's right about all of it. He also doesn't show you a single line of code.
 
-This does. We're going to take a real MCP server, put it behind the open-source Tyk gateway, and hand two agents their own keys. Then we watch the gateway stop one of them from issuing refunds, throttle it when it floods us, cut it off when it burns through its token budget, and log every last call to a database you can query. No Dashboard, no license, no trial. [Clone the repo](https://github.com/mostafaibrahim17/tyk-mcp-governance), run one command, watch it work.
+This does. We're going to take a real MCP server, put it behind the open-source Tyk gateway, and hand two agents their own keys. Then we watch the gateway stop one of them from issuing refunds, throttle it when it floods us, cut it off when it burns through its token budget, and log every last call to a database you can query. No Dashboard, no license, no trial. [Clone the repo](https://github.com/mostafaibrahim17/tyk-mcp-governance): build the plugin, `docker compose up`, run one script, and watch it work.
 
 ## What you actually have to enforce
 
@@ -20,17 +20,21 @@ Strip out the protocol talk and it's a short list. Five things:
 4. **Cost.** Each agent gets a token budget, and when it's gone, it's gone.
 5. **Audit.** You can answer "which agent did what, when, and what did it cost" without guessing.
 
-Everything below is just wiring up those five. Here's the shape of it.
+Everything below wires up those five. Here's the shape of it.
 
-![Architecture: agent-alpha and agent-beta connect through the Tyk gateway on port 8080, which fronts the MCP server and the OpenAI API and drains analytics through Redis and Tyk Pump into Postgres](assets/architecture.svg)
+![Architecture: agent-alpha and agent-beta connect through the Tyk gateway on port 8080, which fronts the MCP server and the OpenAI API and drains analytics through Redis and Tyk Pump into Postgres](assets/architecture.png)
 
-Two things sit behind the gateway. One is an MCP server with a couple of internal tools. The other is the OpenAI API. The gateway handles identity, rate, and audit for both on its own. Two jobs it won't do out of the box are per-tool access and a per-agent token budget, so for those we write one small Go plugin.
+Two things sit behind the gateway: an MCP server exposing a couple of internal tools, and the OpenAI API. The gateway handles identity, rate, and audit for both on its own, but the two jobs it won't do out of the box are per-tool access and a per-agent token budget, so for those we write a Go plugin. A Go plugin is Go code you compile into a shared library and load into the gateway, which then runs it as custom middleware on the routes you choose.
 
-> **A quick note on Tyk's native MCP gateway.** Tyk 5.13 added a built-in MCP gateway that reads the JSON-RPC and applies per-tool rules for you. It's open source, per-tool rate limits and filtered discovery included. The catch is a bug, not a paywall: on a gateway with no Dashboard, MCP proxy definitions don't load. You create one, the gateway says `added`, then quietly skips it, because it's an OAS-format definition and the open-source file loader has an [open issue](https://github.com/TykTechnologies/tyk/issues/7460) that drops OAS defs. The Dashboard loads them through its database and sidesteps the bug, so the feature works there. Until the loader is fixed, the free no-Dashboard route is a plugin, which is what this guide uses. More on the native path at the end.
+That list of five isn't mine. Martin Buhr's ["twelve-point pre-production test for agents"](https://tyk.io/blog/if-you-cant-revoke-your-agent-you-dont-have-autonomy-you-have-unattended-traffic/) lands in the same place, running through identity, least privilege, rate limits and budgets, audit, and revocation, where his version is the checklist and this one is the wiring.
+
+> **Before you start.** You'll need Docker, since the whole stack runs in Compose, and Python 3 to drive the client. A real `OPENAI_API_KEY` is needed for one step only, the token budget. Everything else, the gateway, Redis, Postgres, Tyk Pump, and even the plugin compiler, comes down as a container. [Clone the repo](https://github.com/mostafaibrahim17/tyk-mcp-governance) and you're set.
+
+> **A note on Tyk's native MCP gateway.** Tyk 5.13.0 added a built-in MCP gateway that reads the JSON-RPC and applies per-tool rules for you, no plugin needed. It's open source, and the team wrote up the design in ["Building an MCP gateway from scratch"](https://tyk.io/blog/building-an-mcp-gateway-from-scratch-how-we-got-to-openapi-for-mcp/). The catch is a bug, not a paywall: in my testing, on a gateway with no Dashboard the OAS-format MCP definition didn't load cleanly from files, so the gateway took it and then acted as if it wasn't there. File-based OAS loading has known rough edges (see [tyk#7460](https://github.com/TykTechnologies/tyk/issues/7460)); the Dashboard sidesteps them by loading definitions from its own database. So the free no-Dashboard route today is a plugin, which is what this guide uses. More on the native path at the end.
 
 ## Stand up Tyk and put the MCP server behind it
 
-The MCP server is a small [FastMCP](https://gofastmcp.com/) app with two tools. One reads data, one is the dangerous one. An agent that can read your orders is a convenience. An agent that can refund them is a liability with a personality. That split is the whole point of per-tool access.
+The MCP server is a small [FastMCP](https://gofastmcp.com/) app with two tools, one that reads data and one that does the dangerous thing. An agent that can read your orders is a convenience; an agent that can refund them is a liability with a personality, and that split between the two is the whole point of per-tool access.
 
 ```python
 from fastmcp import FastMCP
@@ -54,7 +58,7 @@ if __name__ == "__main__":
 
 > **Streamable HTTP only.** Tyk is a network gateway, so it can't proxy a stdio MCP server. If yours speaks stdio, put a bridge in front of it. FastMCP serves Streamable HTTP already, so we're fine.
 
-The `docker-compose.yml` brings up the gateway, Redis (Tyk needs it, even for one node), the MCP server, Tyk Pump, and Postgres. The gateway runs in open-source mode and reads its config from files. Putting the MCP server behind it is just pointing a Tyk API at it:
+The `docker-compose.yml` brings up the gateway, Redis (Tyk needs it, even for one node), the MCP server, Tyk Pump, and Postgres. The gateway runs in open-source mode and reads its config from files. Putting the MCP server behind it means pointing a Tyk API at it:
 
 ```json
 // tyk/apps/internal-tools.json (excerpt)
@@ -68,15 +72,15 @@ The `docker-compose.yml` brings up the gateway, Redis (Tyk needs it, even for on
 "auth": { "auth_header_name": "apikey" }
 ```
 
-Now the gateway serves the MCP server at `http://localhost:8080/internal-tools/mcp`, and it asks for a key, because we turned keyless access off. One warning, learned the hard way: do not put `mcp` in the `api_id`. The gateway routes anything with `mcp` in the name to its built-in MCP path, which only accepts OAS-format definitions, so it quietly drops a plain (classic) API def. It doesn't warn you. It just acts like your API doesn't exist. I lost an afternoon to that so you don't have to.
+Now the gateway serves the MCP server at `http://localhost:8080/internal-tools/mcp`, and it asks for a key, because we turned keyless access off. One warning, learned the hard way: keep `mcp` out of the `api_id`. A classic def whose `api_id` held `mcp` loaded without complaint and then acted like it didn't exist, as if the name were being routed to the built-in MCP path. Renaming it fixed it at once. I lost an afternoon to that so you don't have to.
 
 ## One key per agent: identity and rate limits
 
 Every request runs the same set of checks, and any one of them can stop it before it reaches a tool or the model.
 
-![Request flow: each request passes auth, then the rate limit, then the Go plugin's tool and budget checks before reaching the upstream; failures return 401, 429, or 403](assets/request-flow.svg)
+![Request flow: each request passes auth, then the rate limit, then the Go plugin's tool and budget checks before reaching the upstream; failures return 401, 429, or 403](assets/request-flow.png)
 
-With keyless off, every call needs a key, so we hand one to each agent. Now every request has a name on it. Each key carries its own access rights, its own rate limits, and a little metadata the plugin reads later.
+With keyless off, every call needs a key, so we hand one to each agent, and now every request has a name on it. Each key carries its own access rights, its own rate limits, and some metadata the plugin reads later.
 
 ```bash
 curl -H "x-tyk-authorization: $SECRET" -X POST http://localhost:8080/tyk/keys -d '{
@@ -92,19 +96,19 @@ curl -H "x-tyk-authorization: $SECRET" -X POST http://localhost:8080/tyk/keys -d
 }'
 ```
 
-`agent-alpha` is the junior account. Tight rate limit, and only `lookup_order` on its list. `agent-beta` gets room to move and both tools. Throw a burst at the gateway and the two stay out of each other's way:
+`agent-alpha` is the junior account, on a tight rate limit with only `lookup_order` on its list, while `agent-beta` gets room to move and both tools. Throw a burst at the gateway and the two stay out of each other's way:
 
 ```
 agent-alpha 30 rapid calls -> [400 400 400 400 400 429 429 429 ...]
-    5 reach the server, then 25 are rejected with 429 (rate limit tripped)
+    5 reach the server, then the rest are rejected with 429 (rate limit tripped)
 agent-beta call during alpha's burst -> reaches the server, unaffected
 ```
 
-(Those `400`s are the MCP server, not the gateway: this raw burst skips the MCP handshake, so the server turns it away. What matters is what the gateway does: five through, then a wall of 429s.) One agent hammers a tool and trips its own 429s. The other, calling at the same moment, doesn't feel a thing. That's the isolation, and the gateway hands it to you for free.
+(Those `400`s are the MCP server, not the gateway: the raw burst skips the MCP handshake, so the server turns it away. What matters is the gateway's part: it lets a small burst through, then throttles the rest with 429.) One agent hammers a tool and trips its own 429s while the other, calling at the same moment, doesn't feel a thing. That's the isolation, and the gateway hands it to you for free.
 
 ## Per-tool access in a Go plugin
 
-Rate limits count requests. They can't tell a call for `issue_refund` from a call for `lookup_order`. The open-source gateway treats MCP as plain HTTP, so we teach it to read the difference. A small hook reads the JSON-RPC body and checks the tool name against the agent's list.
+Rate limits count requests, but they can't tell a call for `issue_refund` from a call for `lookup_order`. The open-source gateway treats MCP as plain HTTP, so we teach it to read the difference: a small hook reads the JSON-RPC body and checks the tool name against the agent's list.
 
 ```go
 func McpAccessControl(rw http.ResponseWriter, r *http.Request) {
@@ -136,7 +140,7 @@ agent-beta   issue_refund(A-1001) -> {"status": "refund_issued", ...}
 
 ## A token guard on the LLM call
 
-What an LLM call actually costs is tokens, not requests. That math is specific to your setup, so the gateway leaves it to you. The same plugin, on a second route that fronts OpenAI, takes care of it. A response hook reads `total_tokens` off each reply and adds it to that agent's running total.
+What an LLM call actually costs is tokens, not requests, and that math is specific to your setup, so the gateway leaves it to you. The same plugin takes care of it on a second route that fronts OpenAI, where a response hook reads `total_tokens` off each reply and adds it to that agent's running total.
 
 ```go
 func MeterTokens(rw http.ResponseWriter, res *http.Response, req *http.Request) {
@@ -148,7 +152,7 @@ func MeterTokens(rw http.ResponseWriter, res *http.Response, req *http.Request) 
 }
 ```
 
-A second hook runs before the call goes out. If the agent is already over budget, the request stops right there and never reaches OpenAI. That same hook swaps in the real OpenAI key, so the agents only ever talk to Tyk and never hold the key themselves.
+A second hook runs before the call goes out, and if the agent is already over budget the request stops right there and never reaches OpenAI. That same hook swaps in the real OpenAI key, so the agents only ever talk to Tyk and never hold the key themselves.
 
 ```go
 func EnforceBudget(rw http.ResponseWriter, r *http.Request) {
@@ -163,10 +167,10 @@ func EnforceBudget(rw http.ResponseWriter, r *http.Request) {
 }
 ```
 
-Give alpha a 150-token budget and it gets three calls before the gate shuts. Beta, on a big budget, keeps going:
+Give alpha a 150-token budget and it gets only a few calls before the gate shuts, how many depends on how many tokens each reply spends, since the guard counts real `total_tokens`. Beta, on a big budget, keeps going. One representative run:
 
 ```
-agent-alpha (budget 150):  call 1: 200 (+50)  call 2: 200 (+50)  call 3: 200 (+50)  call 4: 429 budget exhausted
+agent-alpha (budget 150):  call 1: 200 (+52)  call 2: 200 (+49)  call 3: 200 (+55)  call 4: 429 budget exhausted
 agent-beta  (budget 100000): 200 200 200 200 200 200 200
 ```
 
@@ -174,7 +178,7 @@ agent-beta  (budget 100000): 200 200 200 200 200 200 200
 
 ### Build the plugin for your exact gateway
 
-Here's the part that catches everyone. A Go plugin has to be built against the same gateway version, the same build flags, and the same CPU type. Get any of those wrong and the gateway won't load it, and it won't be chatty about why. Tyk ships a compiler image pinned to each version so the match is exact:
+Here's the part that catches everyone. A Go plugin has to be built against the same gateway version, the same build flags, and the same CPU type. Get any of those wrong and the gateway won't load it, and it won't tell you why. Tyk ships a compiler image pinned to each version so the match is exact:
 
 ```makefile
 docker run --rm -v "$(CURDIR)":/plugin-source --platform=linux/amd64 \
@@ -182,7 +186,7 @@ docker run --rm -v "$(CURDIR)":/plugin-source --platform=linux/amd64 \
   tykio/tyk-plugin-compiler:v5.14.0 token_guard.so plugin-v5.14.0
 ```
 
-`GO_GET=1` pins the Tyk dependency to the right commit for you. Bump the gateway version and you bump the compiler tag with it. (If none of this sounds like a good time, Tyk AI Studio does cost budgets and model governance as a separate Tyk product, no plugin required.)
+`GO_GET=1` fetches the exact Tyk gateway dependency for you (Tyk marks it a dev-only convenience, but it works). Bump the gateway version and you bump the compiler tag with it. (If none of this sounds like a good time, Tyk AI Studio does cost budgets and model governance as a separate Tyk product, no plugin required.)
 
 ## An audit trail you can query
 
@@ -211,26 +215,36 @@ GROUP BY alias;
 ```
    agent    | llm_calls | total_tokens
 ------------+-----------+--------------
- agent-alpha|         3 |          150
- agent-beta |         7 |          350
+ agent-alpha|         3 |          156
+ agent-beta |         7 |          361
 ```
 
-That's the question compliance actually asks. Which agent did what, when, and what did it cost. "We didn't log it" is not an answer they enjoy. Here it's one query.
+(Figures from one run; your exact token totals will differ, since each reply's token count is real.) That's the question compliance asks, which agent did what, when, and what did it cost, and "we didn't log it" is not an answer they enjoy. Here it's one query.
 
-## Rough edges, and the paid path
+## The five controls, and what enforces each
 
-A few things worth knowing before you take this further. Build the plugin against the exact gateway version, and rebuild it when you upgrade. Tyk proxies Streamable HTTP, not stdio, so a stdio server needs a bridge. Keep `mcp` out of your `api_id`. And move the token counter into Redis before you run more than one gateway.
+That's the whole build. Below, each control is mapped to the piece of the stack that holds it:
 
-The real fork is per-tool MCP control. We did it in a plugin because it runs on the free gateway today. Tyk's native MCP gateway does the same job, per-tool limits, filtered tool lists, JSON-RPC rules, with no code, and it's fully open source. The snag is the loader bug from earlier: on a Dashboard-less gateway the MCP definitions don't mount, so to run the native path right now you need the Dashboard (which loads them a different way) or a gateway build with the fix. So the honest trade today: the plugin is free and works on any open-source gateway; the native path is cleaner but currently needs the Dashboard to stand up. When that changes, or when the plugin starts to feel like a second job, the native gateway is the upgrade. Past that, Tyk AI Studio takes over cost and model governance entirely.
+- **Identity.** Keyless access off, one auth key per agent. Every call has a name on it. (*Tyk, out of the box.*)
+- **Access.** A per-tool allow-list checked against the JSON-RPC body, so `agent-alpha` can read orders but never refund them. (*Go plugin, `McpAccessControl`.*)
+- **Rate.** Per-key rate limits, isolated per agent, so one flooder can't drag the rest down. (*Tyk, out of the box.*)
+- **Cost.** A per-agent token budget, metered off the model's own `total_tokens`, that shuts the gate when it's spent. (*Go plugin, `EnforceBudget` and `MeterTokens`.*)
+- **Audit.** Every call a row in Postgres, tagged by agent, answerable in one SQL query. (*Tyk Pump into Postgres.*)
 
-But you don't need any of that to start. One open-source gateway in front of your agents turns those five open problems into rules that actually hold. The refund never happens. The flood gets throttled. The budget runs out. And every call is on the record.
+Three of the five come free with the open-source gateway, and the other two are a couple hundred lines of Go. That's the entire bill.
+
+## Rough edges, and where to go next
+
+A few gotchas: match the plugin to your gateway version and rebuild on upgrade, put a bridge in front of any stdio server, keep `mcp` out of your `api_id`, and move the token counter to Redis before you run a second node.
+
+The one real choice is per-tool MCP control, and we put it in a plugin because that runs on the free gateway anywhere today. Tyk's native MCP gateway does the same job with no code but still needs the Dashboard for now, thanks to that bug from earlier, so it's where you go when the plugin starts to feel like a second job. If you want cost and model governance handled for you instead of in your own code, that's what Tyk AI Studio is for.
+
+You don't need any of that to start. One free gateway turns those five problems into rules that hold. The refund never happens. The flood gets throttled. The budget runs out. And every call is on the record.
 
 ## Further reading
 
-- [The companion repo](https://github.com/mostafaibrahim17/tyk-mcp-governance): the full stack from this post, runnable with `docker compose up`.
-- James Hirst, ["Why AI agents using MCP need API gateways"](https://tyk.io/blog/ai-agents-need-api-gateways/): the argument this post answers with code.
+- [The companion repo](https://github.com/mostafaibrahim17/tyk-mcp-governance): the full stack from this post. Build the plugin, `docker compose up`, run the client.
+- James Hirst, ["AI agents need API gateways"](https://tyk.io/blog/ai-agents-need-api-gateways/): the argument this post answers with code.
 - [The Model Context Protocol spec](https://modelcontextprotocol.io/): what MCP actually is.
 - [FastMCP](https://gofastmcp.com/): the Python framework used for the demo server.
 - [Tyk MCP Gateway docs](https://tyk.io/docs/ai-management/mcp-gateway/): the native, Dashboard-managed path.
-- [Tyk Go plugin docs](https://tyk.io/docs/api-management/plugins/golang/): how the token-guard plugin is built and loaded.
-- [Tyk AI Studio](https://tyk.io/tyk-ai-studio/): managed token, cost, and model governance.

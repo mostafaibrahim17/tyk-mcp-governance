@@ -2,7 +2,7 @@
 // LLM governance the platform deliberately leaves to you: a per-agent token
 // budget, metered off the model's own response.
 //
-// Two hooks, bound only on the OpenAI route (see tyk/apis/openai.json):
+// Two hooks, bound only on the OpenAI route (see tyk/apps/openai.json):
 //
 //   EnforceBudget  (post hook, runs after auth, before upstream)
 //       - rejects the agent's request with 429 once it is over budget

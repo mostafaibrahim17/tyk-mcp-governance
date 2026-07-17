@@ -16,3 +16,6 @@ ARTICLE.html
 # local preview/review renders
 *-preview.html
 *-review.html
+
+# research cache
+.firecrawl/
