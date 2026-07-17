@@ -167,7 +167,7 @@ func EnforceBudget(rw http.ResponseWriter, r *http.Request) {
 }
 ```
 
-Give alpha a 150-token budget and it gets only a few calls before the gate shuts, how many depends on how many tokens each reply spends, since the guard counts real `total_tokens`. Beta, on a big budget, keeps going. One representative run:
+Give alpha a 150-token budget and it gets only a few calls before the gate shuts. How many it gets depends on what each reply spends, since the guard counts real `total_tokens`. Beta, on a big budget, keeps going. One representative run:
 
 ```
 agent-alpha (budget 150):  call 1: 200 (+52)  call 2: 200 (+49)  call 3: 200 (+55)  call 4: 429 budget exhausted
@@ -186,7 +186,7 @@ docker run --rm -v "$(CURDIR)":/plugin-source --platform=linux/amd64 \
   tykio/tyk-plugin-compiler:v5.14.0 token_guard.so plugin-v5.14.0
 ```
 
-`GO_GET=1` fetches the exact Tyk gateway dependency for you (Tyk marks it a dev-only convenience, but it works). Bump the gateway version and you bump the compiler tag with it. (If none of this sounds like a good time, Tyk AI Studio does cost budgets and model governance as a separate Tyk product, no plugin required.)
+`GO_GET=1` fetches the exact Tyk gateway dependency for you (Tyk marks it a dev-only convenience, but it works). Bump the gateway version and you bump the compiler tag with it.
 
 ## An audit trail you can query
 
@@ -219,7 +219,7 @@ GROUP BY alias;
  agent-beta |         7 |          361
 ```
 
-(Figures from one run; your exact token totals will differ, since each reply's token count is real.) That's the question compliance asks, which agent did what, when, and what did it cost, and "we didn't log it" is not an answer they enjoy. Here it's one query.
+(Figures from one run; your exact token totals will differ, since each reply's token count is real.) That's the question compliance asks: which agent did what, when, and what did it cost. "We didn't log it" is not an answer they enjoy. Here it's one query.
 
 ## The five controls, and what enforces each
 
